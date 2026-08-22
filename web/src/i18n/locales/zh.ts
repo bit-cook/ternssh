@@ -238,7 +238,7 @@ export const zh = {
     selectSavedKey: "选择已保存的私钥",
     importFile: "导入私钥文件",
     uploadHint: "点击或拖拽上传私钥文件",
-    uploadFormats: "支持 .pem、.key、id_rsa、id_ed25519 等格式",
+    uploadFormats: "支持 OpenSSH 私钥（Ed25519、RSA、ECDSA），以及 .pem、.key、id_rsa、id_ed25519 等格式",
     uploadedFile: "已上传：{name}",
     uploadEmpty: "私钥文件为空",
     uploadFailed: "无法读取私钥文件",

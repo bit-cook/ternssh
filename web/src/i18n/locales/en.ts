@@ -252,7 +252,7 @@ export const en: Messages = {
     selectSavedKey: "Select a saved private key",
     importFile: "Import key file",
     uploadHint: "Click or drag a private key file here",
-    uploadFormats: "Supports .pem, .key, id_rsa, id_ed25519, and more",
+    uploadFormats: "Supports OpenSSH private keys (Ed25519, RSA, ECDSA), .pem, .key, id_rsa, id_ed25519, and more",
     uploadedFile: "Uploaded: {name}",
     uploadEmpty: "The key file is empty",
     uploadFailed: "Failed to read the key file",
