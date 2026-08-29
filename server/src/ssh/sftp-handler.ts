@@ -835,7 +835,9 @@ export class SFTPHandler {
     }
 
     try {
-      const resp = await this.sftp.rename(oldPath, newPath);
+      const fromPath = await this.resolveRemotePath(oldPath);
+      const toPath = await this.resolveRemotePath(newPath);
+      const resp = await this.sftp.rename(fromPath, toPath);
       const type = resp[0];
 
       if (type === SSH_FXP_STATUS) {

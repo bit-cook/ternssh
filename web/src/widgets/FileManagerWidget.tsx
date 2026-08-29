@@ -3,6 +3,7 @@ import {
   ArrowUp,
   Download,
   File,
+  FilePlus,
   Folder,
   FolderPlus,
   FolderUp,
@@ -150,6 +151,14 @@ async function ensureRemoteDirectories(
 function formatModifiedTime(timestamp: number): string {
   if (!timestamp) return "-";
   return new Date(timestamp * 1000).toLocaleString();
+}
+
+function parseRemoteName(raw: string | null): string | null {
+  if (raw == null) return null;
+  const name = raw.trim();
+  if (!name || name === "." || name === "..") return null;
+  if (name.includes("/") || name.includes("\\")) return null;
+  return name;
 }
 
 export function FileManagerWidget({
@@ -516,18 +525,110 @@ export function FileManagerWidget({
   const handleMkdir = async () => {
     if (!isActive() || !ready || !clientRef.current) return;
 
-    const name = window.prompt(t("fileManager.newFolderPrompt"));
-    if (!name?.trim()) return;
+    const raw = window.prompt(t("fileManager.newFolderPrompt"));
+    if (raw == null) return;
+    const name = parseRemoteName(raw);
+    if (!name) {
+      setError(t("fileManager.invalidName"));
+      return;
+    }
+    if (entries.some((item) => item.name === name)) {
+      setError(t("fileManager.alreadyExists", { name }));
+      return;
+    }
 
     setLoading(true);
     setError(null);
     try {
-      await clientRef.current.mkdir(joinRemotePath(remotePath, name.trim()));
+      await clientRef.current.mkdir(joinRemotePath(remotePath, name));
       if (!isActive()) return;
       await loadDirectory(remotePath);
     } catch (err) {
       if (!isActive()) return;
       setError(err instanceof Error ? err.message : t("fileManager.mkdirFailed"));
+      setLoading(false);
+    }
+  };
+
+  const handleNewFile = async () => {
+    if (!isActive() || !ready || !clientRef.current) return;
+
+    const raw = window.prompt(t("fileManager.newFilePrompt"));
+    if (raw == null) return;
+    const name = parseRemoteName(raw);
+    if (!name) {
+      setError(t("fileManager.invalidName"));
+      return;
+    }
+    if (entries.some((item) => item.name === name)) {
+      setError(t("fileManager.alreadyExists", { name }));
+      return;
+    }
+
+    const target = joinRemotePath(remotePath, name);
+    setLoading(true);
+    setError(null);
+    setMenu(null);
+    try {
+      await clientRef.current.writeFileContent(target, "");
+      if (!isActive()) return;
+      await loadDirectory(remotePath);
+      if (!isActive()) return;
+      setSelectedName(name);
+      setEditorTarget({
+        entry: {
+          name,
+          type: "file",
+          size: 0,
+          sizeFormatted: "0 B",
+          permissions: "---------",
+          permissionsRaw: 0,
+          modifiedTime: 0,
+          isDir: false,
+          isLink: false,
+        },
+        remotePath: target,
+      });
+    } catch (err) {
+      if (!isActive()) return;
+      setError(
+        err instanceof Error ? err.message : t("fileManager.createFileFailed"),
+      );
+      setLoading(false);
+    }
+  };
+
+  const handleRenameEntry = async (entry: SftpEntry) => {
+    if (!isActive() || !ready || !clientRef.current) return;
+
+    const raw = window.prompt(t("fileManager.renamePrompt"), entry.name);
+    if (raw == null) return;
+    const name = parseRemoteName(raw);
+    if (!name) {
+      setError(t("fileManager.invalidName"));
+      return;
+    }
+    if (name === entry.name) return;
+    if (entries.some((item) => item.name === name)) {
+      setError(t("fileManager.alreadyExists", { name }));
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setMenu(null);
+    try {
+      await clientRef.current.rename(
+        joinRemotePath(remotePath, entry.name),
+        joinRemotePath(remotePath, name),
+      );
+      if (!isActive()) return;
+      await loadDirectory(remotePath);
+    } catch (err) {
+      if (!isActive()) return;
+      setError(
+        err instanceof Error ? err.message : t("fileManager.renameFailed"),
+      );
       setLoading(false);
     }
   };
@@ -796,6 +897,11 @@ export function FileManagerWidget({
           onSelect: () => folderInputRef.current?.click(),
         },
         {
+          id: "newFile",
+          label: t("fileManager.newFile"),
+          onSelect: () => void handleNewFile(),
+        },
+        {
           id: "mkdir",
           label: t("fileManager.newFolder"),
           onSelect: () => void handleMkdir(),
@@ -840,6 +946,12 @@ export function FileManagerWidget({
         onSelect: () => void handleDownloadEntry(entry),
       });
     }
+
+    items.push({
+      id: "rename",
+      label: t("fileManager.rename"),
+      onSelect: () => void handleRenameEntry(entry),
+    });
 
     items.push({
       id: "delete",
@@ -961,6 +1073,15 @@ export function FileManagerWidget({
           title={t("fileManager.download")}
         >
           <Download className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={loading || !ready}
+          onClick={() => void handleNewFile()}
+          title={t("fileManager.newFile")}
+        >
+          <FilePlus className="h-3.5 w-3.5" />
         </Button>
         <Button
           size="sm"

@@ -248,6 +248,24 @@ export class SftpClient {
     });
   }
 
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    return this.withSftpRetry(async () => {
+      await this.ensureSftpReady();
+      this.send({ type: "sftp_rename", oldPath, newPath });
+      const message = await this.waitFor(
+        (item) =>
+          item.type === "sftp_rename_result" ||
+          item.type === "sftp_error",
+        15_000,
+        "重命名超时",
+      );
+
+      if (message.type === "sftp_error") {
+        throw new Error(String(message.message ?? "重命名失败"));
+      }
+    });
+  }
+
   async deletePath(path: string): Promise<void> {
     return this.withSftpRetry(async () => {
       await this.ensureSftpReady();
